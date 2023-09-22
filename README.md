@@ -9,7 +9,7 @@ pip install -U sentence-transformers
 ### Data
 
 ```sh
-Drive
+https://drive.google.com/drive/folders/1poqQh_aioeMCJ99np7obFLO_s36H-AO5?usp=share_link
 ```
 
 # Inductive split
@@ -35,14 +35,15 @@ python time_prediction.py --data_dir "../DATASETS/WIKIDATA12k"  --do_train --epo
 ```
 
 # Inductive
+
+```sh
+python time_prediction.py --data_dir "../DATASETS/inductive/all-triples/YAGO11k"  --do_train --epochs 50 --batch 1024 --n_temporal_neg 128  --do_test --lr 0.001 --min_time -453 --max_time 2844 --margin 2 --save_model --save_to  "ind_yago11k_tp_model.pth" --use_descriptions
+```
+
 ```sh
 python time_prediction.py --data_dir "../DATASETS/inductive/all-triples/WIKIDATA12k"  --do_train --epochs 50 --batch 1024 --n_temporal_neg 128 --do_test --lr 0.001  --margin 2 --save_model --save_to "ind_wikidata12k_tp_model.pth" --use_descriptions
 ```
 
-```sh
-python time_prediction.py --data_dir "../DATASETS/inductive/all-triples/YAGO11k"  --do_train --epochs 50 --batch 1024 --n_temporal_neg 128  --do_test --lr 0.001 --min_time -453 --max_time 2844 --margin 2 --save_model --save_to  "ind_yago11k_tp_model.pth" --use_descriptions
-
-```
 
 ### Acknowledgments
 This code borrows from KG-BERT, BLP, TimePlex and Time2Box.
