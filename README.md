@@ -1,18 +1,18 @@
 # TEMT: Text Encoder Meets Time
 
-### Requirements
+# Requirements
 
 ```sh
 pip install -U sentence-transformers
 ```
 
-### Data
+# Data
 
 ```sh
 https://drive.google.com/drive/folders/1poqQh_aioeMCJ99np7obFLO_s36H-AO5?usp=share_link
 ```
 
-# Inductive split
+### Inductive split
 
 ```sh
 python data/utils_from_blp.py drop_entities --file=../DATASETS/inductive/only-training/WIKIDATA12k/old-train.txt
@@ -22,9 +22,9 @@ python data/utils_from_blp.py drop_entities --file=../DATASETS/inductive/all-tri
 python data/create_inductive_splits.py
 ```
 
-### Experiments
+# Experiments
 
-# Time prediction
+### Time prediction: Transductive setting
 
 ```sh
 python time_prediction.py --data_dir "../DATASETS/YAGO11k"  --do_train --epochs 50 --batch 1024 --n_temporal_neg 128  --do_test --lr 0.001  --min_time -453 --max_time 2844 --margin 2 --save_model --save_to "yago11k_tp_model.pth" --use_descriptions
@@ -34,7 +34,7 @@ python time_prediction.py --data_dir "../DATASETS/YAGO11k"  --do_train --epochs 
 python time_prediction.py --data_dir "../DATASETS/WIKIDATA12k"  --do_train --epochs 50 --batch 1024 --n_temporal_neg 128 --do_test --lr 0.001  --margin 2 --save_model --save_to "wikidata12k_tp_model.pth" --use_descriptions
 ```
 
-# Inductive
+### Time prediction: Inductive setting
 
 ```sh
 python time_prediction.py --data_dir "../DATASETS/inductive/all-triples/YAGO11k"  --do_train --epochs 50 --batch 1024 --n_temporal_neg 128  --do_test --lr 0.001 --min_time -453 --max_time 2844 --margin 2 --save_model --save_to  "ind_yago11k_tp_model.pth" --use_descriptions
@@ -45,5 +45,5 @@ python time_prediction.py --data_dir "../DATASETS/inductive/all-triples/WIKIDATA
 ```
 
 
-### Acknowledgments
+# Acknowledgments
 This code borrows from [KG-BERT](https://github.com/yao8839836/kg-bert), [BLP](https://github.com/dfdazac/blp), [TimePlex](https://github.com/dair-iitd/tkbi), and [Time2Box](https://github.com/ling-cai/Time2Box).
