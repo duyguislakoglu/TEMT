@@ -46,4 +46,4 @@ python time_prediction.py --data_dir "../DATASETS/inductive/all-triples/WIKIDATA
 
 
 ### Acknowledgments
-This code borrows from KG-BERT, BLP, TimePlex and Time2Box.
+This code borrows from [KG-BERT](https://github.com/yao8839836/kg-bert), [BLP](https://github.com/dfdazac/blp), [TimePlex](https://github.com/dair-iitd/tkbi), and [Time2Box](https://github.com/ling-cai/Time2Box).
