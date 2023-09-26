@@ -8,9 +8,9 @@ pip install -U sentence-transformers
 
 # Data
 
-```sh
-https://drive.google.com/drive/folders/1poqQh_aioeMCJ99np7obFLO_s36H-AO5?usp=share_link
-```
+We enhanced two datasets YAGO11k and WIKIDATA12k from [HyTE](https://github.com/malllabiisc/HyTE) by entity names and entity descriptions. The splits are created by following [BLP](https://github.com/dfdazac/blp). See /data/README.md for more information.
+
+[Drive Link](https://drive.google.com/drive/folders/1poqQh_aioeMCJ99np7obFLO_s36H-AO5?usp=share_link)
 
 ### Inductive split
 
