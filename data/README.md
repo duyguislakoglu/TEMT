@@ -40,4 +40,4 @@ WIKIDATA12K
 
 General issues:
   - Usually the descriptions start with the names. It causes repetition since the names and descriptions are merged.
-  - "This article related to a Spanish film of the 2000s is a stub. You can help Wikipedia by expanding it." Removing this pattern. Wiki
+  - "This article related to a Spanish film of the 2000s is a stub. You can help Wikipedia by expanding it." Removing this pattern.

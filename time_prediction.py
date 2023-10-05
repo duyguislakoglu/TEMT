@@ -96,105 +96,94 @@ def main():
      device = torch.device("cuda" if use_cuda else "cpu")
      print(device)
 
-     #lr = args.lr
-     #margin = args.margin
+     if args.do_train:
+         ################ M O D E L ######################
+         processor = TKGProcessor(args.data_dir, "tp", "train", min_time=args.min_time, max_time=args.max_time, time_dimension=args.time_dimension)
+         processor.n_temporal_neg = args.n_temporal_neg
+         processor.n_corrupted_triple = args.n_corrupted_triple
+         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+         model = CrossEncoderWithTime(time_dimension=args.time_dimension)
+         model.to(device)
+         optimizer = torch.optim.Adam(model.parameters(),lr=args.lr)
+         loss_fn = nn.MarginRankingLoss(margin=args.margin)
+         model.train()
 
-     lr_options = [0.001, 0.002, 0.003, 0.01]
-     margin_options = [1,2,3,4,5,6,7,8,9,10]
+         ################ D A T A ##################
+         data_prefix = str(args.data_dir.split("/")[-1]) + "_" + str(args.number_of_words) + "_"
+         data_prefix += str(args.n_temporal_neg) + "_" + str(args.n_corrupted_triple) + "_"
+         data_prefix += str(args.time_dimension)
+         if args.saved_features:
+             with open("../"+str(data_prefix)+".dat", "rb") as f:
+                 train_features = pickle.load(f)
+         else:
+             train_examples = processor.get_train_examples(args.data_dir, args.sampling_type)
+             train_features = processor.convert_examples_to_features(train_examples, use_descriptions=args.use_descriptions)
+             with open("../"+str(data_prefix)+".dat", "wb") as f:
+                  pickle.dump(train_features, f)
 
-     current_setting = list(itertools.product(lr_options, margin_options))
-     for setting in current_setting:
-         print(setting)
-         (lr, margin) = setting
+         all_time_encoding = torch.tensor([f.time_encoding for f in train_features])
+         all_label = torch.tensor([f.label for f in train_features])
+         all_triple_encoding = torch.tensor([f.triple_encoding for f in train_features])
+         train_data = TensorDatasetWithMoreNegatives(all_time_encoding,
+                        all_label, all_triple_encoding, number_of_negatives=processor.n_temporal_neg + processor.n_corrupted_triple)
+         train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=False)
 
-         if args.do_train:
-             ################ M O D E L ######################
-             processor = TKGProcessor(args.data_dir, "tp", "train", min_time=args.min_time, max_time=args.max_time, time_dimension=args.time_dimension)
-             processor.n_temporal_neg = args.n_temporal_neg
-             processor.n_corrupted_triple = args.n_corrupted_triple
-             device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+         #########################################
+
+         losses = []
+         correct = 0
+         for i in range(args.epochs):
+             for j, batch in enumerate(train_loader):
+                 batch = tuple(t.to(device) for t in batch)
+                 (time_encoding, label, triple_encoding) = batch
+                 (pos_triple, negs_triple) = triple_encoding[:,0,:], triple_encoding[:,1:,:]
+                 (pos_time, negs_time) = time_encoding[:,0,:], time_encoding[:,1:,:]
+                 (pos_label, negs_label) = label[:,0],  label[:,1:]
+                 pos_time = torch.Tensor(pos_time.float())
+                 for k in range(negs_time.shape[1]):
+                     neg_time = torch.Tensor(negs_time[:,k,:].float())
+                     output1 = model(pos_triple, pos_time)
+                     output2 = model(negs_triple[:,k,:], neg_time)
+                     loss = loss_fn(output1, output2, torch.from_numpy(np.ones(pos_label.shape)).reshape(-1,1).to(device))
+                     optimizer.zero_grad()
+                     loss.backward()
+                     optimizer.step()
+             losses.append(loss.item())
+             print("epoch {}\tloss : {}".format(i,loss))
+             if args.save_model:
+                 torch.save(model.state_dict(), args.save_to)
+
+     if args.do_test:
+         data_prefix = str(args.data_dir.split("/")[-1]) + "_" + str(args.number_of_words) + "_"
+         data_prefix += str(args.n_temporal_neg) + "_" + str(args.n_corrupted_triple) + "_"
+         data_prefix += str(args.time_dimension)
+         processor = TKGProcessor(args.data_dir, task="tp", mode="test", min_time=args.min_time, max_time=args.max_time, time_dimension=args.time_dimension)
+         time_vectors = processor.time_encoder.time_vectors
+         ground_truth_intervals = processor.get_ground_truth_test_intervals(args.data_dir)
+
+         if args.saved_test_features:
+             with open("../test_{}.dat".format(data_prefix), "rb") as f:
+                 test_features = pickle.load(f)
+         else:
+             test_examples = processor.get_test_examples(args.data_dir)
+             test_features = processor.convert_examples_to_features(test_examples, use_descriptions=args.use_descriptions)
+             with open("../test_{}.dat".format(data_prefix), "wb") as f:
+                pickle.dump(test_features, f)
+
+         all_time_encoding = torch.tensor([f.time_encoding for f in test_features])
+         all_label = torch.tensor([f.label for f in test_features])
+         all_triple_encoding = torch.tensor([f.triple_encoding for f in test_features])
+         test_data = TensorDatasetWithMoreNegatives(all_time_encoding,
+                    all_label, all_triple_encoding, number_of_negatives=0)
+         batch_size = 1
+         test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+
+         if args.pretrained:
              model = CrossEncoderWithTime(time_dimension=args.time_dimension)
+             model.load_state_dict(torch.load(args.load_from))
              model.to(device)
-             optimizer = torch.optim.Adam(model.parameters(),lr=lr)
-             loss_fn = nn.MarginRankingLoss(margin=margin)
-             model.train()
-
-             ################ D A T A ##################
-             data_prefix = str(args.data_dir.split("/")[-1]) + "_" + str(args.number_of_words) + "_"
-             data_prefix += str(args.n_temporal_neg) + "_" + str(args.n_corrupted_triple) + "_"
-             data_prefix += str(args.time_dimension)
-             if args.saved_features:
-                 with open("../"+str(data_prefix)+".dat", "rb") as f:
-                     train_features = pickle.load(f)
-             else:
-                 train_examples = processor.get_train_examples(args.data_dir, args.sampling_type)
-                 train_features = processor.convert_examples_to_features(train_examples, use_descriptions=args.use_descriptions)
-                 with open("../"+str(data_prefix)+".dat", "wb") as f:
-                      pickle.dump(train_features, f)
-
-             all_time_encoding = torch.tensor([f.time_encoding for f in train_features])
-             all_label = torch.tensor([f.label for f in train_features])
-             all_triple_encoding = torch.tensor([f.triple_encoding for f in train_features])
-             train_data = TensorDatasetWithMoreNegatives(all_time_encoding,
-                            all_label, all_triple_encoding, number_of_negatives=processor.n_temporal_neg + processor.n_corrupted_triple)
-             train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=False)
-
-             #########################################
-
-             losses = []
-             correct = 0
-             for i in range(args.epochs):
-                 for j, batch in enumerate(train_loader):
-                     batch = tuple(t.to(device) for t in batch)
-                     (time_encoding, label, triple_encoding) = batch
-                     (pos_triple, negs_triple) = triple_encoding[:,0,:], triple_encoding[:,1:,:]
-                     (pos_time, negs_time) = time_encoding[:,0,:], time_encoding[:,1:,:]
-                     (pos_label, negs_label) = label[:,0],  label[:,1:]
-                     pos_time = torch.Tensor(pos_time.float())
-                     for k in range(negs_time.shape[1]):
-                         neg_time = torch.Tensor(negs_time[:,k,:].float())
-                         output1 = model(pos_triple, pos_time)
-                         output2 = model(negs_triple[:,k,:], neg_time)
-                         loss = loss_fn(output1, output2, torch.from_numpy(np.ones(pos_label.shape)).reshape(-1,1).to(device))
-                         optimizer.zero_grad()
-                         loss.backward()
-                         optimizer.step()
-                 losses.append(loss.item())
-                 print("epoch {}\tloss : {}".format(i,loss))
-                 if args.save_model:
-                     torch.save(model.state_dict(), args.save_to)
-
-         if args.do_test:
-             data_prefix = str(args.data_dir.split("/")[-1]) + "_" + str(args.number_of_words) + "_"
-             data_prefix += str(args.n_temporal_neg) + "_" + str(args.n_corrupted_triple) + "_"
-             data_prefix += str(args.time_dimension)
-             processor = TKGProcessor(args.data_dir, task="tp", mode="test", min_time=args.min_time, max_time=args.max_time, time_dimension=args.time_dimension)
-             time_vectors = processor.time_encoder.time_vectors
-             ground_truth_intervals = processor.get_ground_truth_test_intervals(args.data_dir)
-
-             if args.saved_test_features:
-                 with open("../test_{}.dat".format(data_prefix), "rb") as f:
-                     test_features = pickle.load(f)
-             else:
-                 test_examples = processor.get_test_examples(args.data_dir)
-                 test_features = processor.convert_examples_to_features(test_examples, use_descriptions=args.use_descriptions)
-                 with open("../test_{}.dat".format(data_prefix), "wb") as f:
-                    pickle.dump(test_features, f)
-
-             all_time_encoding = torch.tensor([f.time_encoding for f in test_features])
-             all_label = torch.tensor([f.label for f in test_features])
-             all_triple_encoding = torch.tensor([f.triple_encoding for f in test_features])
-             test_data = TensorDatasetWithMoreNegatives(all_time_encoding,
-                        all_label, all_triple_encoding, number_of_negatives=0)
-             batch_size = 1
-             test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-
-             if args.pretrained:
-                 model = CrossEncoderWithTime(time_dimension=args.time_dimension)
-                 model.load_state_dict(torch.load(args.load_from))
-                 model.to(device)
-             time_range = range(args.min_time, args.max_time+1)
-             eval_tp(model, device, test_loader, time_vectors, time_range, ground_truth_intervals, args=args, constant_threshold=args.constant_threshold)
+         time_range = range(args.min_time, args.max_time+1)
+         eval_tp(model, device, test_loader, time_vectors, time_range, ground_truth_intervals, args=args, constant_threshold=args.constant_threshold)
 
 if __name__ == "__main__":
     main()
