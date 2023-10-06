@@ -133,6 +133,7 @@ def main():
          losses = []
          correct = 0
          for i in range(args.epochs):
+             epoch_loss = []
              for j, batch in enumerate(train_loader):
                  batch = tuple(t.to(device) for t in batch)
                  (time_encoding, label, triple_encoding) = batch
@@ -145,13 +146,15 @@ def main():
                      output1 = model(pos_triple, pos_time)
                      output2 = model(negs_triple[:,k,:], neg_time)
                      loss = loss_fn(output1, output2, torch.from_numpy(np.ones(pos_label.shape)).reshape(-1,1).to(device))
+                     epoch_loss.append(loss.item())
                      optimizer.zero_grad()
                      loss.backward()
                      optimizer.step()
-             losses.append(loss.item())
-             print("epoch {}\tloss : {}".format(i,loss))
-             if args.save_model:
-                 torch.save(model.state_dict(), args.save_to)
+
+             losses.append(sum(epoch_loss) / len(epoch_loss))
+             print("epoch {}\tloss : {}".format(i,sum(epoch_loss) / len(epoch_loss)))
+         if args.save_model:
+            torch.save(model.state_dict(), args.save_to)
 
      if args.do_test:
          data_prefix = str(args.data_dir.split("/")[-1]) + "_" + str(args.number_of_words) + "_"
